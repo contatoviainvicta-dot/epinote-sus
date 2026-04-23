@@ -56,7 +56,14 @@ def ler_tabnet(uploaded_file):
     df = df.sort_values("Ano")
 
     return df
+    
+# 🔥 ADICIONE AQUI 👇
+def extrair_nome_doenca(uploaded_file):
+    content = uploaded_file.getvalue().decode("latin1")
+    primeira_linha = content.splitlines()[0]
 
+    nome = primeira_linha.split("-")[0].strip()
+    return nome
 
 # =========================
 # PROCESSAMENTO
@@ -71,7 +78,7 @@ if arquivos:
         if df is not None:
 
             # Nome da doença (nome do arquivo)
-            nome = arquivo.name.replace(".csv", "")
+            nome = extrair_nome_doenca(arquivo)
 
             df["Doenca"] = nome
             lista_df.append(df)
