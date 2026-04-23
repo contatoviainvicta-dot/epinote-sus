@@ -18,14 +18,23 @@ arquivo = st.file_uploader("📂 Upload do CSV do TabNet", type=["csv"])
 # =========================
 # FUNÇÃO ROBUSTA TABNET
 # =========================
+
+# =========================
+# EXTRAIR TÍTULO
+# =========================
+def extrair_titulo(uploaded_file):
+    content = uploaded_file.getvalue().decode("latin1")
+    return content.splitlines()[0]
 def ler_tabnet(uploaded_file):
+    import io
+
     content = uploaded_file.read().decode("latin1")
     linhas = content.splitlines()
 
-    # Encontrar início da tabela
+    # Encontrar cabeçalho (linha com "Ano")
     inicio = None
     for i, linha in enumerate(linhas):
-        if "Ano" in linha and "Caso" in linha:
+        if "Ano" in linha:
             inicio = i
             break
 
@@ -51,44 +60,21 @@ def ler_tabnet(uploaded_file):
     df.columns = df.columns.str.replace('"', '').str.strip()
     df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
 
-    # Detectar colunas
-    col_ano = None
-    col_casos = None
-
-    for col in df.columns:
-        if "Ano" in col:
-            col_ano = col
-        if "caso" in col.lower():
-            col_casos = col
-
-    if col_ano is None or col_casos is None:
-        st.error("❌ Não foi possível identificar colunas de Ano e Casos")
+    # Garantir pelo menos 2 colunas
+    if df.shape[1] < 2:
+        st.error("❌ CSV não possui colunas suficientes")
         st.write(df.head())
         return None
 
-    df = df[[col_ano, col_casos]]
+    # Pegar as duas primeiras colunas SEM depender do nome
+    df = df.iloc[:, :2]
     df.columns = ["Ano", "Casos"]
 
+    # Remover linha Total
+    df = df[df["Ano"] != "Total"]
+
     # Converter tipos
-    df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
-    df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
-
-    # Remover inválidos
-    df = df.dropna()
-
-    # Ordenar
-    df = df.sort_values("Ano")
-
-    return df
-
-
-# =========================
-# EXTRAIR TÍTULO
-# =========================
-def extrair_titulo(uploaded_file):
-    content = uploaded_file.getvalue().decode("latin1")
-    return content.splitlines()[0]
-
+    df["Ano"] = pd
 
 # =========================
 # EXECUÇÃO
