@@ -22,30 +22,42 @@ def ler_tabnet(uploaded_file):
     content = uploaded_file.read().decode("latin1")
     linhas = content.splitlines()
 
-    # Detectar cabeçalho real
-    inicio = None
-    for i, linha in enumerate(linhas):
-        if "Ano" in linha and "Casos" in linha:
-            inicio = i
-            break
+    dados_limpos = []
 
-    if inicio is None:
-        return None
+    for linha in linhas:
+        linha = linha.strip()
 
-    dados = "\n".join(linhas[inicio:])
-
-    # Testar separadores
-    for sep in [";", ",", "\t", r"\s+"]:
-        try:
-            df = pd.read_csv(io.StringIO(dados), sep=sep, engine="python")
-            if df.shape[1] >= 2:
-                break
-        except:
+        # Ignorar lixo
+        if not linha:
+            continue
+        if "Total" in linha:
+            continue
+        if "Fonte" in linha:
+            continue
+        if "Nota" in linha:
             continue
 
-    # Padronizar colunas
-    # Detectar colunas automaticamente
-    colunas = df.columns.tolist()
+        partes = linha.split()
+
+        # Procurar padrão: ANO + VALOR
+        if len(partes) >= 2:
+            ano = partes[0]
+            casos = partes[-1]
+
+            # validar se são números
+            if ano.isdigit() and casos.replace('.', '').isdigit():
+                dados_limpos.append([ano, casos])
+
+    if not dados_limpos:
+        st.error("❌ Não foi possível extrair dados do CSV")
+        return None
+
+    df = pd.DataFrame(dados_limpos, columns=["Ano", "Casos"])
+
+    df["Ano"] = pd.to_numeric(df["Ano"])
+    df["Casos"] = pd.to_numeric(df["Casos"])
+
+    return df
 
 # Encontrar coluna de ano
     col_ano = None
