@@ -91,7 +91,53 @@ if arquivos:
 
     st.subheader("📊 Dados combinados")
     st.write(df_final)
+    if arquivos:
 
+    lista_df = []
+
+    for arquivo in arquivos:
+        df = ler_tabnet(arquivo)
+
+        if df is not None:
+            nome = extrair_nome_doenca(arquivo)
+            df["Doenca"] = nome
+            lista_df.append(df)
+
+    if not lista_df:
+        st.error("❌ Nenhum arquivo válido")
+        st.stop()
+
+    df_final = pd.concat(lista_df)
+
+    # =========================
+    # 🔥 ALERTAS (COLOQUE AQUI)
+    # =========================
+    st.subheader("🚨 Alertas Epidemiológicos")
+
+    alertas = []
+
+    for doenca in df_final["Doenca"].unique():
+        df_temp = df_final[df_final["Doenca"] == doenca]
+
+        if len(df_temp) < 3:
+            continue
+
+        media = df_temp["Casos"].mean()
+        ultimo = df_temp["Casos"].iloc[-1]
+
+        if media == 0:
+            continue
+
+        aumento = (ultimo - media) / media
+
+        if aumento > 0.5:
+            alertas.append((doenca, aumento))
+
+    if alertas:
+        for doenca, aumento in alertas:
+            st.error(f"🚨 Alerta: aumento de {aumento*100:.1f}% em {doenca}")
+    else:
+        st.success("✅ Nenhum alerta epidemiológico identificado")
     # =========================
     # GRÁFICO COMPARATIVO
     # =========================
@@ -107,7 +153,7 @@ if arquivos:
         marker="o",
         ax=ax
     )
-
+   
     ax.set_ylabel("Casos")
     ax.set_xlabel("Ano")
     ax.grid()
