@@ -18,44 +18,68 @@ arquivo = st.file_uploader("📂 Upload do CSV do TabNet", type=["csv"])
 # FUNÇÃO ROBUSTA TABNET
 # =========================
 def ler_tabnet(uploaded_file):
+    import io
+
+    content = uploaded_file.read().decode("latin1")
+    linhas = content.splitlines()
+
+    # Encontrar linha do cabeçalho real
+    inicio = None
+    for i, linha in enumerate(linhas):
+        if "Ano" in linha and "Caso" in linha:
+            inicio = i
+            break
+
+    if inicio is None:
+        st.error("❌ Não foi possível encontrar a tabela no CSV")
+        st.text(content[:500])
+        return None
+
+    # Pegar só a parte da tabela
+    dados = "\n".join(linhas[inicio:])
+
     try:
-        # Ler CSV corretamente
-        df = pd.read_csv(uploaded_file, sep=";", encoding="latin1")
-
-        # Limpar nomes das colunas
-        df.columns = df.columns.str.replace('"', '').str.strip()
-
-        # Encontrar colunas automaticamente
-        col_ano = None
-        col_casos = None
-
-        for col in df.columns:
-            if "Ano" in col:
-                col_ano = col
-            if "caso" in col.lower():
-                col_casos = col
-
-        if col_ano is None or col_casos is None:
-            st.error("❌ Não foi possível identificar colunas de Ano e Casos")
-            st.write(df.head())
-            return None
-
-        df = df[[col_ano, col_casos]]
-        df.columns = ["Ano", "Casos"]
-
-        # Converter tipos
-        df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
-        df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
-
-        # Remover linhas inválidas
-        df.dropna(inplace=True)
-
-        return df
+        df = pd.read_csv(
+            io.StringIO(dados),
+            sep=";",
+            encoding="latin1",
+            engine="python"
+        )
 
     except Exception as e:
         st.error("❌ Erro ao processar CSV")
         st.write(str(e))
         return None
+
+    # Limpar nomes das colunas
+    df.columns = df.columns.str.replace('"', '').str.strip()
+
+    # Detectar colunas
+    col_ano = None
+    col_casos = None
+
+    for col in df.columns:
+        if "Ano" in col:
+            col_ano = col
+        if "caso" in col.lower():
+            col_casos = col
+
+    if col_ano is None or col_casos is None:
+        st.error("❌ Não foi possível identificar colunas")
+        st.write(df.head())
+        return None
+
+    df = df[[col_ano, col_casos]]
+    df.columns = ["Ano", "Casos"]
+
+    # Converter tipos
+    df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
+    df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
+
+    # Remover linhas inválidas
+    df = df.dropna()
+
+    return df
 
 # =========================
 # EXTRAIR TÍTULO
