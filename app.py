@@ -44,8 +44,29 @@ def ler_tabnet(uploaded_file):
             continue
 
     # Padronizar colunas
-    df = df.iloc[:, :2]
-    df.columns = ["Ano", "Casos"]
+    # Detectar colunas automaticamente
+    colunas = df.columns.tolist()
+
+# Encontrar coluna de ano
+    col_ano = None
+    for c in colunas:
+        if "Ano" in str(c):
+            col_ano = c
+        break
+
+# Encontrar coluna de casos
+col_casos = None
+for c in colunas:
+    if "caso" in str(c).lower():
+        col_casos = c
+        break
+
+if col_ano is None or col_casos is None:
+    st.error("❌ Não foi possível identificar colunas de Ano e Casos")
+    return None
+
+df = df[[col_ano, col_casos]]
+df.columns = ["Ano", "Casos"]
 
     # Limpeza
     df = df[df["Ano"] != "Total"]
