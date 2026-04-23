@@ -28,11 +28,7 @@ def ler_tabnet(uploaded_file):
 
         if not linha:
             continue
-        if "Total" in linha:
-            continue
-        if "Fonte" in linha:
-            continue
-        if "Nota" in linha:
+        if "Total" in linha or "Fonte" in linha or "Nota" in linha:
             continue
 
         partes = linha.split()
@@ -41,16 +37,25 @@ def ler_tabnet(uploaded_file):
             ano = partes[0]
             casos = partes[-1]
 
-            if ano.isdigit() and casos.replace('.', '').isdigit():
+            # limpar possíveis vírgulas
+            casos = casos.replace(",", ".")
+            
+            try:
+                ano = int(ano)
+                casos = float(casos)
+
                 dados_limpos.append([ano, casos])
 
+            except:
+                continue
+
     if not dados_limpos:
+        st.error("❌ Não foi possível extrair dados válidos do CSV.")
+        st.write("🔍 Conteúdo inicial do arquivo:")
+        st.text(content[:500])
         return None
 
     df = pd.DataFrame(dados_limpos, columns=["Ano", "Casos"])
-
-    df["Ano"] = pd.to_numeric(df["Ano"])
-    df["Casos"] = pd.to_numeric(df["Casos"])
 
     return df
 
