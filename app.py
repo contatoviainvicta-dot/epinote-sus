@@ -18,7 +18,73 @@ arquivo = st.file_uploader("📂 Upload do CSV do TabNet", type=["csv"])
 # =========================
 # FUNÇÃO ROBUSTA TABNET
 # =========================
+def ler_tabnet(uploaded_file):
+    import io
 
+    content = uploaded_file.read().decode("latin1")
+    linhas = content.splitlines()
+
+    # Encontrar início da tabela
+    inicio = None
+    for i, linha in enumerate(linhas):
+        if "Ano" in linha:
+            inicio = i
+            break
+
+    if inicio is None:
+        st.error("❌ Não foi possível encontrar a tabela no CSV")
+        st.text(content[:500])
+        return None
+
+    dados = "\n".join(linhas[inicio:])
+
+    try:
+        df = pd.read_csv(
+            io.StringIO(dados),
+            sep=";",
+            engine="python"
+        )
+    except:
+        st.error("❌ Erro ao ler CSV")
+        return None
+
+    # Limpar nomes
+    df.columns = df.columns.str.replace('"', '').str.strip()
+    df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
+
+    # 🔥 CASO ESPECIAL: tudo veio em uma coluna só
+    if df.shape[1] == 1:
+        col = df.columns[0]
+
+        # separar manualmente
+        df = df[col].str.split(";", expand=True)
+
+        if df.shape[1] < 2:
+            st.error("❌ Não foi possível dividir os dados corretamente")
+            st.write(df.head())
+            return None
+
+    # pegar só duas colunas
+    df = df.iloc[:, :2]
+    df.columns = ["Ano", "Casos"]
+
+    # remover "Total"
+    df = df[df["Ano"] != "Total"]
+
+    # limpar aspas
+    df["Ano"] = df["Ano"].astype(str).str.replace('"', '')
+    df["Casos"] = df["Casos"].astype(str).str.replace('"', '')
+
+    # converter
+    df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
+    df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
+
+    df = df.dropna()
+
+    # ordenar
+    df = df.sort_values("Ano")
+
+    return df
 # =========================
 # EXTRAIR TÍTULO
 # =========================
