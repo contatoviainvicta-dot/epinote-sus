@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import io
 
 st.set_page_config(page_title="EpiNote", layout="centered")
 
@@ -18,12 +19,10 @@ arquivo = st.file_uploader("📂 Upload do CSV do TabNet", type=["csv"])
 # FUNÇÃO ROBUSTA TABNET
 # =========================
 def ler_tabnet(uploaded_file):
-    import io
-
     content = uploaded_file.read().decode("latin1")
     linhas = content.splitlines()
 
-    # Encontrar linha do cabeçalho real
+    # Encontrar início da tabela
     inicio = None
     for i, linha in enumerate(linhas):
         if "Ano" in linha and "Caso" in linha:
@@ -35,24 +34,22 @@ def ler_tabnet(uploaded_file):
         st.text(content[:500])
         return None
 
-    # Pegar só a parte da tabela
     dados = "\n".join(linhas[inicio:])
 
     try:
         df = pd.read_csv(
             io.StringIO(dados),
             sep=";",
-            encoding="latin1",
             engine="python"
         )
-
     except Exception as e:
-        st.error("❌ Erro ao processar CSV")
+        st.error("❌ Erro ao ler CSV")
         st.write(str(e))
         return None
 
-    # Limpar nomes das colunas
+    # Limpar colunas
     df.columns = df.columns.str.replace('"', '').str.strip()
+    df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
 
     # Detectar colunas
     col_ano = None
@@ -65,7 +62,7 @@ def ler_tabnet(uploaded_file):
             col_casos = col
 
     if col_ano is None or col_casos is None:
-        st.error("❌ Não foi possível identificar colunas")
+        st.error("❌ Não foi possível identificar colunas de Ano e Casos")
         st.write(df.head())
         return None
 
@@ -76,10 +73,14 @@ def ler_tabnet(uploaded_file):
     df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
     df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
 
-    # Remover linhas inválidas
+    # Remover inválidos
     df = df.dropna()
 
+    # Ordenar
+    df = df.sort_values("Ano")
+
     return df
+
 
 # =========================
 # EXTRAIR TÍTULO
@@ -101,6 +102,9 @@ if arquivo is not None:
         st.error("❌ Não foi possível processar o CSV do TabNet.")
         st.stop()
 
+    # =========================
+    # EXIBIÇÃO
+    # =========================
     st.subheader("📄 Fonte dos dados")
     st.write(titulo)
 
@@ -117,6 +121,7 @@ if arquivo is not None:
 
     ax.set_ylabel("Casos")
     ax.set_xlabel("Ano")
+    ax.grid()
 
     st.pyplot(fig)
 
@@ -136,7 +141,7 @@ if arquivo is not None:
     variacao = ((df["Casos"].iloc[-1] - df["Casos"].iloc[0]) / df["Casos"].iloc[0]) * 100
 
     # =========================
-    # NOTA
+    # NOTA EPIDEMIOLÓGICA
     # =========================
     st.subheader("📝 Nota Epidemiológica")
 
