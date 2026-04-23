@@ -18,47 +18,44 @@ arquivo = st.file_uploader("📂 Upload do CSV do TabNet", type=["csv"])
 # FUNÇÃO ROBUSTA TABNET
 # =========================
 def ler_tabnet(uploaded_file):
-    content = uploaded_file.read().decode("latin1")
-    linhas = content.splitlines()
+    try:
+        # Ler CSV corretamente
+        df = pd.read_csv(uploaded_file, sep=";", encoding="latin1")
 
-    dados_limpos = []
+        # Limpar nomes das colunas
+        df.columns = df.columns.str.replace('"', '').str.strip()
 
-    for linha in linhas:
-        linha = linha.strip()
+        # Encontrar colunas automaticamente
+        col_ano = None
+        col_casos = None
 
-        if not linha:
-            continue
-        if "Total" in linha or "Fonte" in linha or "Nota" in linha:
-            continue
+        for col in df.columns:
+            if "Ano" in col:
+                col_ano = col
+            if "caso" in col.lower():
+                col_casos = col
 
-        partes = linha.split()
+        if col_ano is None or col_casos is None:
+            st.error("❌ Não foi possível identificar colunas de Ano e Casos")
+            st.write(df.head())
+            return None
 
-        if len(partes) >= 2:
-            ano = partes[0]
-            casos = partes[-1]
+        df = df[[col_ano, col_casos]]
+        df.columns = ["Ano", "Casos"]
 
-            # limpar possíveis vírgulas
-            casos = casos.replace(",", ".")
-            
-            try:
-                ano = int(ano)
-                casos = float(casos)
+        # Converter tipos
+        df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
+        df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
 
-                dados_limpos.append([ano, casos])
+        # Remover linhas inválidas
+        df.dropna(inplace=True)
 
-            except:
-                continue
+        return df
 
-    if not dados_limpos:
-        st.error("❌ Não foi possível extrair dados válidos do CSV.")
-        st.write("🔍 Conteúdo inicial do arquivo:")
-        st.text(content[:500])
+    except Exception as e:
+        st.error("❌ Erro ao processar CSV")
+        st.write(str(e))
         return None
-
-    df = pd.DataFrame(dados_limpos, columns=["Ano", "Casos"])
-
-    return df
-
 
 # =========================
 # EXTRAIR TÍTULO
