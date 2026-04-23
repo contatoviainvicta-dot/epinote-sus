@@ -148,3 +148,33 @@ if arquivos:
 
 else:
     st.info("⬆️ Envie múltiplos arquivos CSV para comparação.")
+
+
+alertas = []
+
+for doenca in df_final["Doenca"].unique():
+    df_temp = df_final[df_final["Doenca"] == doenca]
+
+    if len(df_temp) < 3:
+        continue
+
+    media = df_temp["Casos"].mean()
+    ultimo = df_temp["Casos"].iloc[-1]
+
+    if media == 0:
+        continue
+
+    aumento = (ultimo - media) / media
+
+    if aumento > 0.5:
+        alertas.append((doenca, aumento))
+
+
+# =========================
+# EXIBIÇÃO
+# =========================
+if alertas:
+    for doenca, aumento in alertas:
+        st.error(f"🚨 Alerta: aumento de {aumento*100:.1f}% em {doenca}")
+else:
+    st.success("✅ Nenhum alerta epidemiológico identificado")
