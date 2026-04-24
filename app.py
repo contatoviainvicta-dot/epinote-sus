@@ -20,37 +20,36 @@ arquivos = st.file_uploader(
 # =========================
 # FUNÇÃO: LEITURA TABNET
 # =========================
+
 def ler_tabnet(uploaded_file):
     import io
 
     content = uploaded_file.read().decode("latin1")
+    linhas = content.splitlines()
 
-    # tenta ler ignorando lixo inicial
-    try:
-        df = pd.read_csv(io.StringIO(content), sep=";", engine="python")
-    except:
-        return None
-
-    # remover linhas totalmente vazias
-    df = df.dropna(how="all")
-
-    # 🔥 identificar linha de cabeçalho real
+    # =========================
+    # 🔍 ENCONTRAR LINHA DE CABEÇALHO
+    # =========================
     header_idx = None
-    for i, row in df.iterrows():
-        if "Ano" in str(row.values[0]):
+    for i, linha in enumerate(linhas):
+        if "Ano" in linha:
             header_idx = i
             break
 
     if header_idx is None:
         return None
 
-    # reconstruir dataframe
-    df = pd.read_csv(
-        io.StringIO(content),
-        sep=";",
-        skiprows=header_idx,
-        engine="python"
-    )
+    # =========================
+    # 📊 LER TABELA REAL
+    # =========================
+    try:
+        df = pd.read_csv(
+            io.StringIO("\n".join(linhas[header_idx:])),
+            sep=";",
+            engine="python"
+        )
+    except:
+        return None
 
     # limpar colunas
     df.columns = [c.strip().replace('"', '') for c in df.columns]
@@ -59,7 +58,7 @@ def ler_tabnet(uploaded_file):
     df = df[~df.iloc[:,0].astype(str).str.contains("Total", na=False)]
 
     # =========================
-    # FORMATO MENSAL (wide → long)
+    # FORMATO MENSAL
     # =========================
     if len(df.columns) > 2:
 
@@ -90,18 +89,6 @@ def ler_tabnet(uploaded_file):
         df = df.dropna()
 
         return df
-    # =========================
-    # DETECTAR FORMATO
-    # =========================
-    if len(dados[0]) == 3:
-        df = pd.DataFrame(dados, columns=["Ano", "Mes", "Casos"])
-        df = df.sort_values(["Ano", "Mes"])
-    else:
-        df = pd.DataFrame(dados, columns=["Ano", "Casos"])
-        df = df.sort_values("Ano")
-
-    return df
-# =========================
 # FUNÇÃO: NOME DA DOENÇA
 # =========================
 def extrair_nome_doenca(uploaded_file):
