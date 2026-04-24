@@ -151,16 +151,23 @@ if arquivos:
     st.subheader("📈 Tendência Estatística")
 
     for doenca in df_final["Doenca"].unique():
-        df_temp = df_final[df_final["Doenca"] == doenca]
+    df_temp = df_final[df_final["Doenca"] == doenca].copy()
 
-        if len(df_temp) < 3:
-            st.info(f"{doenca}: dados insuficientes para regressão")
-            continue
+    # 🔥 GARANTIR DADOS LIMPOS
+    df_temp["Ano"] = pd.to_numeric(df_temp["Ano"], errors="coerce")
+    df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
+    df_temp = df_temp.dropna()
 
+    # 🔥 PRECISA DE PELO MENOS 3 PONTOS
+    if len(df_temp) < 3:
+        st.info(f"{doenca}: dados insuficientes para regressão")
+        continue
+
+    try:
         x = df_temp["Ano"]
         y = df_temp["Casos"]
 
-        slope, _, _, p_value, _ = linregress(x, y)
+        slope, intercept, r_value, p_value, std_err = linregress(x, y)
 
         if p_value < 0.05:
             if slope > 0:
@@ -171,6 +178,9 @@ if arquivos:
             interpretacao = "sem tendência estatisticamente significativa"
 
         st.write(f"**{doenca}**: {interpretacao} (p={p_value:.3f})")
+
+    except Exception as e:
+        st.error(f"Erro na análise de {doenca}: {e}")
 
     # =========================
     # 🚨 ALERTAS (Z-SCORE)
