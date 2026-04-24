@@ -21,46 +21,75 @@ arquivos = st.file_uploader(
 # FUNÇÃO: LEITURA TABNET
 # =========================
 def ler_tabnet(uploaded_file):
+    import io
+
     content = uploaded_file.read().decode("latin1")
-    linhas = content.splitlines()
 
-    dados = []
-
-    for linha in linhas:
-        linha = linha.strip().replace('"', '')
-
-        if not linha:
-            continue
-        if "Total" in linha or "Fonte" in linha or "Nota" in linha:
-            continue
-
-        if ";" in linha:
-            partes = linha.split(";")
-        else:
-            partes = linha.split()
-
-        # 🔥 FORMATO MENSAL (3 colunas)
-        if len(partes) >= 3:
-            try:
-                ano = int(partes[0])
-                mes = int(partes[1])
-                valor = float(partes[-1].replace(",", "."))
-                dados.append([ano, mes, valor])
-            except:
-                continue
-
-        # 🔥 FORMATO ANUAL (2 colunas)
-        elif len(partes) >= 2:
-            try:
-                ano = int(partes[0])
-                valor = float(partes[-1].replace(",", "."))
-                dados.append([ano, valor])
-            except:
-                continue
-
-    if not dados:
+    # tenta ler ignorando lixo inicial
+    try:
+        df = pd.read_csv(io.StringIO(content), sep=";", engine="python")
+    except:
         return None
 
+    # remover linhas totalmente vazias
+    df = df.dropna(how="all")
+
+    # 🔥 identificar linha de cabeçalho real
+    header_idx = None
+    for i, row in df.iterrows():
+        if "Ano" in str(row.values[0]):
+            header_idx = i
+            break
+
+    if header_idx is None:
+        return None
+
+    # reconstruir dataframe
+    df = pd.read_csv(
+        io.StringIO(content),
+        sep=";",
+        skiprows=header_idx,
+        engine="python"
+    )
+
+    # limpar colunas
+    df.columns = [c.strip().replace('"', '') for c in df.columns]
+
+    # remover total
+    df = df[~df.iloc[:,0].astype(str).str.contains("Total", na=False)]
+
+    # =========================
+    # FORMATO MENSAL (wide → long)
+    # =========================
+    if len(df.columns) > 2:
+
+        df_long = df.melt(
+            id_vars=df.columns[0],
+            var_name="Mes",
+            value_name="Casos"
+        )
+
+        df_long.rename(columns={df.columns[0]: "Ano"}, inplace=True)
+
+        df_long["Ano"] = pd.to_numeric(df_long["Ano"], errors="coerce")
+        df_long["Casos"] = pd.to_numeric(df_long["Casos"], errors="coerce")
+
+        df_long = df_long.dropna()
+
+        return df_long
+
+    # =========================
+    # FORMATO ANUAL
+    # =========================
+    else:
+        df.columns = ["Ano", "Casos"]
+
+        df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
+        df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
+
+        df = df.dropna()
+
+        return df
     # =========================
     # DETECTAR FORMATO
     # =========================
