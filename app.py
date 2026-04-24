@@ -161,7 +161,7 @@ if arquivos:
     # 🔥 PRECISA DE PELO MENOS 3 PONTOS
     if len(df_temp) < 3:
         st.info(f"{doenca}: dados insuficientes para regressão")
-        continue
+    continue
 
     try:
         x = df_temp["Ano"]
