@@ -215,89 +215,89 @@ if arquivos:
         st.success("✅ Nenhum surto detectado")
     st.subheader("📊 Canal Endêmico Mensal")
 
-for doenca in df_final["Doenca"].unique():
-    df_temp = df_final[df_final["Doenca"] == doenca].copy()
+    for doenca in df_final["Doenca"].unique():
+        df_temp = df_final[df_final["Doenca"] == doenca].copy()
 
     # =========================
     # PREPARAÇÃO DOS DADOS
     # =========================
-    df_temp["Ano"] = pd.to_numeric(df_temp["Ano"], errors="coerce")
-    df_temp["Mes"] = pd.to_numeric(df_temp["Mes"], errors="coerce")
-    df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
+        df_temp["Ano"] = pd.to_numeric(df_temp["Ano"], errors="coerce")
+        df_temp["Mes"] = pd.to_numeric(df_temp["Mes"], errors="coerce")
+        df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
 
-    df_temp = df_temp.dropna()
+        df_temp = df_temp.dropna()
 
-    if df_temp.empty:
-        continue
+        if df_temp.empty:
+            continue
 
     # =========================
     # CALCULAR CANAL POR MÊS
     # =========================
-    canal = df_temp.groupby("Mes")["Casos"].agg(["mean", "std"]).reset_index()
+            canal = df_temp.groupby("Mes")["Casos"].agg(["mean", "std"]).reset_index()
 
-    canal["limite_inferior"] = canal["mean"] - canal["std"]
-    canal["limite_superior"] = canal["mean"] + canal["std"]
-    canal["limite_epidemia"] = canal["mean"] + 2 * canal["std"]
+            canal["limite_inferior"] = canal["mean"] - canal["std"]
+            canal["limite_superior"] = canal["mean"] + canal["std"]
+            canal["limite_epidemia"] = canal["mean"] + 2 * canal["std"]
 
     # =========================
     # DADOS DO ANO MAIS RECENTE
     # =========================
-    ano_recente = df_temp["Ano"].max()
-    df_recente = df_temp[df_temp["Ano"] == ano_recente]
+            ano_recente = df_temp["Ano"].max()
+            df_recente = df_temp[df_temp["Ano"] == ano_recente]
 
-    df_plot = canal.merge(df_recente, on="Mes", how="left")
+            df_plot = canal.merge(df_recente, on="Mes", how="left")
 
     # =========================
     # CLASSIFICAÇÃO
     # =========================
-    status_mes = []
+            status_mes = []
 
-    for _, row in df_plot.iterrows():
-        if pd.isna(row["Casos"]):
-            status_mes.append("Sem dado")
-        elif row["Casos"] > row["limite_epidemia"]:
-            status_mes.append("🔴 Epidemia")
-        elif row["Casos"] > row["limite_superior"]:
-            status_mes.append("🟡 Acima do esperado")
-        elif row["Casos"] < row["limite_inferior"]:
-            status_mes.append("🔵 Abaixo do esperado")
-        else:
-            status_mes.append("🟢 Normal")
+            for _, row in df_plot.iterrows():
+                if pd.isna(row["Casos"]):
+                    status_mes.append("Sem dado")
+            elif row["Casos"] > row["limite_epidemia"]:
+                    status_mes.append("🔴 Epidemia")
+            elif row["Casos"] > row["limite_superior"]:
+                    status_mes.append("🟡 Acima do esperado")
+            elif row["Casos"] < row["limite_inferior"]:
+                    status_mes.append("🔵 Abaixo do esperado")
+            else:
+                status_mes.append("🟢 Normal")
 
-    df_plot["Status"] = status_mes
+        df_plot["Status"] = status_mes
 
     # =========================
     # EXIBIÇÃO
     # =========================
-    st.markdown(f"### {doenca} - {int(ano_recente)}")
+        st.markdown(f"### {doenca} - {int(ano_recente)}")
 
-    st.write(df_plot[["Mes", "Casos", "Status"]])
+        st.write(df_plot[["Mes", "Casos", "Status"]])
 
     # =========================
     # GRÁFICO
     # =========================
-    fig, ax = plt.subplots()
+        fig, ax = plt.subplots()
 
-    ax.plot(df_plot["Mes"], df_plot["mean"], label="Média")
-    ax.plot(df_plot["Mes"], df_plot["limite_superior"], linestyle="--", label="+1 DP")
-    ax.plot(df_plot["Mes"], df_plot["limite_epidemia"], linestyle="--", label="+2 DP")
+        ax.plot(df_plot["Mes"], df_plot["mean"], label="Média")
+        ax.plot(df_plot["Mes"], df_plot["limite_superior"], linestyle="--", label="+1 DP")
+        ax.plot(df_plot["Mes"], df_plot["limite_epidemia"], linestyle="--", label="+2 DP")
 
-    ax.plot(df_plot["Mes"], df_plot["Casos"], marker="o", label="Ano atual")
+        ax.plot(df_plot["Mes"], df_plot["Casos"], marker="o", label="Ano atual")
 
-    ax.fill_between(
-        df_plot["Mes"],
-        df_plot["limite_inferior"],
-        df_plot["limite_superior"],
-        alpha=0.1,
-        label="Faixa esperada"
-    )
+        ax.fill_between(
+            df_plot["Mes"],
+            df_plot["limite_inferior"],
+            df_plot["limite_superior"],
+            alpha=0.1,
+            label="Faixa esperada"
+        )
 
-    ax.set_title(f"Canal Endêmico Mensal - {doenca}")
-    ax.set_xlabel("Mês")
-    ax.set_ylabel("Casos")
-    ax.legend()
-    ax.grid()
+        ax.set_title(f"Canal Endêmico Mensal - {doenca}")
+        ax.set_xlabel("Mês")
+        ax.set_ylabel("Casos")
+        ax.legend()
+        ax.grid()
 
-    st.pyplot(fig)
+        st.pyplot(fig)
 else:
     st.info("⬆️ Envie múltiplos arquivos CSV para comparação.")
