@@ -159,28 +159,28 @@ if arquivos:
         df_temp = df_temp.dropna()
 
     # 🔥 PRECISA DE PELO MENOS 3 PONTOS
-    if len(df_temp) < 3:
-        st.info(f"{doenca}: dados insuficientes para regressão")
-    continue
+        if len(df_temp) < 3:
+            st.info(f"{doenca}: dados insuficientes para regressão")
+            continue
 
-    try:
-        x = df_temp["Ano"]
-        y = df_temp["Casos"]
+        try:
+            x = df_temp["Ano"]
+            y = df_temp["Casos"]
 
-        slope, intercept, r_value, p_value, std_err = linregress(x, y)
+            slope, intercept, r_value, p_value, std_err = linregress(x, y)
 
-        if p_value < 0.05:
-            if slope > 0:
-                interpretacao = "tendência crescente significativa"
+            if p_value < 0.05:
+                if slope > 0:
+                    interpretacao = "tendência crescente significativa"
+                else:
+                    interpretacao = "tendência decrescente significativa"
             else:
-                interpretacao = "tendência decrescente significativa"
-        else:
-            interpretacao = "sem tendência estatisticamente significativa"
+                interpretacao = "sem tendência estatisticamente significativa"
 
-        st.write(f"**{doenca}**: {interpretacao} (p={p_value:.3f})")
+            st.write(f"**{doenca}**: {interpretacao} (p={p_value:.3f})")
 
-    except Exception as e:
-        st.error(f"Erro na análise de {doenca}: {e}")
+        except Exception as e:
+            st.error(f"Erro na análise de {doenca}: {e}")
 
     # =========================
     # 🚨 ALERTAS (Z-SCORE)
