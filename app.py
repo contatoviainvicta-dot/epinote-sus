@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import linregress
-
 
 st.set_page_config(page_title="Painel Epidemiológico", layout="wide")
 
@@ -59,7 +57,6 @@ def ler_tabnet(uploaded_file):
 
     return df
 
-
 # =========================
 # FUNÇÃO: NOME DA DOENÇA
 # =========================
@@ -71,7 +68,6 @@ def extrair_nome_doenca(uploaded_file):
     nome = nome.replace("Vírus", "").strip()
 
     return nome
-
 
 # =========================
 # EXECUÇÃO PRINCIPAL
@@ -106,20 +102,8 @@ if arquivos:
     st.subheader("📈 Comparação entre doenças")
 
     fig, ax = plt.subplots()
-
-    sns.lineplot(
-        data=df_final,
-        x="Ano",
-        y="Casos",
-        hue="Doenca",
-        marker="o",
-        ax=ax
-    )
-
-    ax.set_xlabel("Ano")
-    ax.set_ylabel("Casos")
+    sns.lineplot(data=df_final, x="Ano", y="Casos", hue="Doenca", marker="o", ax=ax)
     ax.grid()
-
     st.pyplot(fig)
 
     # =========================
@@ -136,59 +120,54 @@ if arquivos:
     st.write(resumo)
 
     # =========================
-    # 📊 TAXA POR 100 MIL
+    # TAXA
     # =========================
     st.subheader("📊 Taxa por 100 mil habitantes")
 
     pop_padrao = st.number_input("População estimada", value=3000000)
-
     df_final["Taxa_100k"] = (df_final["Casos"] / pop_padrao) * 100000
 
     st.write(df_final[["Ano", "Doenca", "Casos", "Taxa_100k"]])
 
     # =========================
-    # 📈 TENDÊNCIA ESTATÍSTICA
+    # TENDÊNCIA (HÍBRIDA)
     # =========================
     st.subheader("📈 Tendência Estatística")
 
     for doenca in df_final["Doenca"].unique():
         df_temp = df_final[df_final["Doenca"] == doenca].copy()
 
-    # 🔥 GARANTIR DADOS LIMPOS
         df_temp["Ano"] = pd.to_numeric(df_temp["Ano"], errors="coerce")
         df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
-        df_temp = df_temp.dropna()
+        df_temp = df_temp.dropna().sort_values("Ano")
 
-    # 🔥 PRECISA DE PELO MENOS 3 PONTOS
         if len(df_temp) < 3:
-            st.info(f"{doenca}: dados insuficientes para regressão")
+            st.info(f"{doenca}: dados insuficientes")
             continue
 
-        try:
-            x = df_temp["Ano"]
-            y = df_temp["Casos"]
+        x = df_temp["Ano"]
+        y = df_temp["Casos"]
 
-            slope, intercept, r_value, p_value, std_err = linregress(x, y)
+        try:
+            from scipy.stats import linregress
+            slope, _, _, p_value, _ = linregress(x, y)
 
             if p_value < 0.05:
-                if slope > 0:
-                    interpretacao = "tendência crescente significativa"
-                else:
-                    interpretacao = "tendência decrescente significativa"
+                interpretacao = "crescente" if slope > 0 else "decrescente"
             else:
-                interpretacao = "sem tendência estatisticamente significativa"
+                interpretacao = "sem tendência significativa"
 
             st.write(f"**{doenca}**: {interpretacao} (p={p_value:.3f})")
 
-        except Exception as e:
-            st.error(f"Erro na análise de {doenca}: {e}")
+        except:
+            slope = (y.iloc[-1] - y.iloc[0]) / (x.iloc[-1] - x.iloc[0])
+            interpretacao = "crescente" if slope > 0 else "decrescente"
+            st.warning(f"{doenca}: {interpretacao} (modo simples)")
 
     # =========================
-    # 🚨 ALERTAS (Z-SCORE)
+    # ALERTAS
     # =========================
-    st.subheader("🚨 Alertas Epidemiológicos (Z-score)")
-
-    alertas = []
+    st.subheader("🚨 Alertas Epidemiológicos")
 
     for doenca in df_final["Doenca"].unique():
         df_temp = df_final[df_final["Doenca"] == doenca]
@@ -206,98 +185,50 @@ if arquivos:
         z = (ultimo - media) / std
 
         if z > 2:
-            alertas.append((doenca, z))
-
-    if alertas:
-        for doenca, z in alertas:
             st.error(f"🚨 Surto possível em {doenca} (Z={z:.2f})")
-    else:
-        st.success("✅ Nenhum surto detectado")
+
+    # =========================
+    # CANAL ENDÊMICO MENSAL
+    # =========================
     st.subheader("📊 Canal Endêmico Mensal")
 
-    for doenca in df_final["Doenca"].unique():
-        df_temp = df_final[df_final["Doenca"] == doenca].copy()
+    if "Mes" not in df_final.columns:
+        st.warning("⚠️ CSV não possui coluna 'Mes'")
+    else:
 
-    # =========================
-    # PREPARAÇÃO DOS DADOS
-    # =========================
-        df_temp["Ano"] = pd.to_numeric(df_temp["Ano"], errors="coerce")
-        df_temp["Mes"] = pd.to_numeric(df_temp["Mes"], errors="coerce")
-        df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
+        for doenca in df_final["Doenca"].unique():
+            df_temp = df_final[df_final["Doenca"] == doenca].copy()
 
-        df_temp = df_temp.dropna()
+            df_temp["Mes"] = pd.to_numeric(df_temp["Mes"], errors="coerce")
+            df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
+            df_temp = df_temp.dropna()
 
-        if df_temp.empty:
-            continue
+            if len(df_temp) < 6:
+                continue
 
-    # =========================
-    # CALCULAR CANAL POR MÊS
-    # =========================
             canal = df_temp.groupby("Mes")["Casos"].agg(["mean", "std"]).reset_index()
 
-            canal["limite_inferior"] = canal["mean"] - canal["std"]
-            canal["limite_superior"] = canal["mean"] + canal["std"]
-            canal["limite_epidemia"] = canal["mean"] + 2 * canal["std"]
+            canal["lim_sup"] = canal["mean"] + canal["std"]
+            canal["lim_epi"] = canal["mean"] + 2 * canal["std"]
 
-    # =========================
-    # DADOS DO ANO MAIS RECENTE
-    # =========================
             ano_recente = df_temp["Ano"].max()
             df_recente = df_temp[df_temp["Ano"] == ano_recente]
 
             df_plot = canal.merge(df_recente, on="Mes", how="left")
 
-    # =========================
-    # CLASSIFICAÇÃO
-    # =========================
-            status_mes = []
+            st.markdown(f"### {doenca}")
 
-            for _, row in df_plot.iterrows():
-                if pd.isna(row["Casos"]):
-                    status_mes.append("Sem dado")
-            elif row["Casos"] > row["limite_epidemia"]:
-                    status_mes.append("🔴 Epidemia")
-            elif row["Casos"] > row["limite_superior"]:
-                    status_mes.append("🟡 Acima do esperado")
-            elif row["Casos"] < row["limite_inferior"]:
-                    status_mes.append("🔵 Abaixo do esperado")
-            else:
-                status_mes.append("🟢 Normal")
+            fig, ax = plt.subplots()
 
-        df_plot["Status"] = status_mes
+            ax.plot(df_plot["Mes"], df_plot["mean"], label="Média")
+            ax.plot(df_plot["Mes"], df_plot["lim_sup"], "--", label="+1DP")
+            ax.plot(df_plot["Mes"], df_plot["lim_epi"], "--", label="+2DP")
+            ax.plot(df_plot["Mes"], df_plot["Casos"], marker="o", label="Atual")
 
-    # =========================
-    # EXIBIÇÃO
-    # =========================
-        st.markdown(f"### {doenca} - {int(ano_recente)}")
+            ax.legend()
+            ax.grid()
 
-        st.write(df_plot[["Mes", "Casos", "Status"]])
+            st.pyplot(fig)
 
-    # =========================
-    # GRÁFICO
-    # =========================
-        fig, ax = plt.subplots()
-
-        ax.plot(df_plot["Mes"], df_plot["mean"], label="Média")
-        ax.plot(df_plot["Mes"], df_plot["limite_superior"], linestyle="--", label="+1 DP")
-        ax.plot(df_plot["Mes"], df_plot["limite_epidemia"], linestyle="--", label="+2 DP")
-
-        ax.plot(df_plot["Mes"], df_plot["Casos"], marker="o", label="Ano atual")
-
-        ax.fill_between(
-            df_plot["Mes"],
-            df_plot["limite_inferior"],
-            df_plot["limite_superior"],
-            alpha=0.1,
-            label="Faixa esperada"
-        )
-
-        ax.set_title(f"Canal Endêmico Mensal - {doenca}")
-        ax.set_xlabel("Mês")
-        ax.set_ylabel("Casos")
-        ax.legend()
-        ax.grid()
-
-        st.pyplot(fig)
 else:
-    st.info("⬆️ Envie múltiplos arquivos CSV para comparação.")
+    st.info("⬆️ Envie arquivos CSV para iniciar.")
