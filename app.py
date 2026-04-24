@@ -15,4 +15,7 @@ plt.xlabel("Ano")
 plt.ylabel("Casos")
 plt.grid()
 
-plt.show()
+# 👉 SALVAR EM VEZ DE MOSTRAR
+plt.savefig("grafico_sifilis.png")
+
+print("Gráfico salvo com sucesso!")
