@@ -135,58 +135,73 @@ if arquivos:
     st.write(resumo)
 
     # =========================
-    # 🚨 ALERTAS EPIDEMIOLÓGICOS
+    # 📊 TAXA POR 100 MIL
     # =========================
-st.subheader("🚨 Alertas Epidemiológicos (Z-score)")
+    st.subheader("📊 Taxa por 100 mil habitantes")
 
-alertas = []
+    pop_padrao = st.number_input("População estimada", value=3000000)
 
-for doenca in df_final["Doenca"].unique():
-    df_temp = df_final[df_final["Doenca"] == doenca]
+    df_final["Taxa_100k"] = (df_final["Casos"] / pop_padrao) * 100000
 
-    if len(df_temp) < 3:
-        continue
+    st.write(df_final[["Ano", "Doenca", "Casos", "Taxa_100k"]])
 
-    media = df_temp["Casos"].mean()
-    std = df_temp["Casos"].std()
-    ultimo = df_temp["Casos"].iloc[-1]
-
-    if std == 0:
-        continue
-
-    z = (ultimo - media) / std
-
-    if z > 2:
-        alertas.append((doenca, z))
-
-if alertas:
-    for doenca, z in alertas:
-        st.error(f"🚨 Surto possível em {doenca} (Z={z:.2f})")
-else:
-    st.success("✅ Nenhum surto detectado")
-else:
-    st.info("⬆️ Envie múltiplos arquivos CSV para comparação.")
-
+    # =========================
+    # 📈 TENDÊNCIA ESTATÍSTICA
+    # =========================
     st.subheader("📈 Tendência Estatística")
 
-for doenca in df_final["Doenca"].unique():
-    df_temp = df_final[df_final["Doenca"] == doenca]
+    for doenca in df_final["Doenca"].unique():
+        df_temp = df_final[df_final["Doenca"] == doenca]
 
-    if len(df_temp) < 3:
-        st.info(f"{doenca}: dados insuficientes para regressão")
-        continue
+        if len(df_temp) < 3:
+            st.info(f"{doenca}: dados insuficientes para regressão")
+            continue
 
-    x = df_temp["Ano"]
-    y = df_temp["Casos"]
+        x = df_temp["Ano"]
+        y = df_temp["Casos"]
 
-    slope, _, _, p_value, _ = linregress(x, y)
+        slope, _, _, p_value, _ = linregress(x, y)
 
-    if p_value < 0.05:
-        if slope > 0:
-            interpretacao = "tendência crescente significativa"
+        if p_value < 0.05:
+            if slope > 0:
+                interpretacao = "tendência crescente significativa"
+            else:
+                interpretacao = "tendência decrescente significativa"
         else:
-            interpretacao = "tendência decrescente significativa"
-    else:
-        interpretacao = "sem tendência estatisticamente significativa"
+            interpretacao = "sem tendência estatisticamente significativa"
 
-    st.write(f"**{doenca}**: {interpretacao} (p={p_value:.3f})")
+        st.write(f"**{doenca}**: {interpretacao} (p={p_value:.3f})")
+
+    # =========================
+    # 🚨 ALERTAS (Z-SCORE)
+    # =========================
+    st.subheader("🚨 Alertas Epidemiológicos (Z-score)")
+
+    alertas = []
+
+    for doenca in df_final["Doenca"].unique():
+        df_temp = df_final[df_final["Doenca"] == doenca]
+
+        if len(df_temp) < 3:
+            continue
+
+        media = df_temp["Casos"].mean()
+        std = df_temp["Casos"].std()
+        ultimo = df_temp["Casos"].iloc[-1]
+
+        if std == 0:
+            continue
+
+        z = (ultimo - media) / std
+
+        if z > 2:
+            alertas.append((doenca, z))
+
+    if alertas:
+        for doenca, z in alertas:
+            st.error(f"🚨 Surto possível em {doenca} (Z={z:.2f})")
+    else:
+        st.success("✅ Nenhum surto detectado")
+
+else:
+    st.info("⬆️ Envie múltiplos arquivos CSV para comparação.")
