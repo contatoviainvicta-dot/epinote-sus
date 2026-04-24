@@ -20,76 +20,44 @@ arquivos = st.file_uploader(
 # =========================
 # FUNÇÃO: LEITURA TABNET
 # =========================
-
-
 def ler_tabnet(uploaded_file):
-    import io
-
-    content = uploaded_file.getvalue().decode("latin1")
+    content = uploaded_file.read().decode("latin1")
     linhas = content.splitlines()
 
-    # =========================
-    # 🔍 ACHAR LINHA DE CABEÇALHO REAL
-    # =========================
-    header_idx = None
+    dados = []
 
-    for i, linha in enumerate(linhas):
-        if "Ano" in linha and ";" in linha:
-            header_idx = i
-            break
+    for linha in linhas:
+        linha = linha.strip().replace('"', '')
 
-    if header_idx is None:
+        if not linha:
+            continue
+        if "Total" in linha or "Fonte" in linha or "Nota" in linha:
+            continue
+
+        if ";" in linha:
+            partes = linha.split(";")
+        else:
+            partes = linha.split()
+
+        if len(partes) < 2:
+            continue
+
+        try:
+            ano = int(partes[0])
+            valor = float(partes[-1].replace(",", "."))
+            dados.append([ano, valor])
+        except:
+            continue
+
+    if not dados:
         return None
 
-    # =========================
-    # 📊 LER TABELA
-    # =========================
-    try:
-        df = pd.read_csv(
-            io.StringIO("\n".join(linhas[header_idx:])),
-            sep=";",
-            engine="python"
-        )
-    except:
-        return None
+    df = pd.DataFrame(dados, columns=["Ano", "Casos"])
+    df = df.sort_values("Ano")
 
-    # limpar colunas
-    df.columns = [c.strip().replace('"', '') for c in df.columns]
+    return df
 
-    # remover linhas inválidas
-    df = df[~df.iloc[:, 0].astype(str).str.contains("Total", na=False)]
-    df = df.dropna(how="all")
-
-    # =========================
-    # 🔥 DETECTAR FORMATO
-    # =========================
-    if df.shape[1] > 2:
-        # 👉 MENSAL (wide → long)
-        df_long = df.melt(
-            id_vars=df.columns[0],
-            var_name="Mes",
-            value_name="Casos"
-        )
-
-        df_long.rename(columns={df.columns[0]: "Ano"}, inplace=True)
-
-        df_long["Ano"] = pd.to_numeric(df_long["Ano"], errors="coerce")
-        df_long["Casos"] = pd.to_numeric(df_long["Casos"], errors="coerce")
-
-        df_long = df_long.dropna()
-
-        return df_long
-
-    else:
-        # 👉 ANUAL
-        df.columns = ["Ano", "Casos"]
-
-        df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce")
-        df["Casos"] = pd.to_numeric(df["Casos"], errors="coerce")
-
-        df = df.dropna()
-
-        return df
+# =========================
 # FUNÇÃO: NOME DA DOENÇA
 # =========================
 def extrair_nome_doenca(uploaded_file):
