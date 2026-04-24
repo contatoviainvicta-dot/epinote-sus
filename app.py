@@ -151,12 +151,12 @@ if arquivos:
     st.subheader("📈 Tendência Estatística")
 
     for doenca in df_final["Doenca"].unique():
-    df_temp = df_final[df_final["Doenca"] == doenca].copy()
+        df_temp = df_final[df_final["Doenca"] == doenca].copy()
 
     # 🔥 GARANTIR DADOS LIMPOS
-    df_temp["Ano"] = pd.to_numeric(df_temp["Ano"], errors="coerce")
-    df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
-    df_temp = df_temp.dropna()
+        df_temp["Ano"] = pd.to_numeric(df_temp["Ano"], errors="coerce")
+        df_temp["Casos"] = pd.to_numeric(df_temp["Casos"], errors="coerce")
+        df_temp = df_temp.dropna()
 
     # 🔥 PRECISA DE PELO MENOS 3 PONTOS
     if len(df_temp) < 3:
