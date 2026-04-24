@@ -21,6 +21,7 @@ arquivos = st.file_uploader(
 # FUNÇÃO: LEITURA TABNET
 # =========================
 
+
 def ler_tabnet(uploaded_file):
     import io
 
@@ -28,11 +29,12 @@ def ler_tabnet(uploaded_file):
     linhas = content.splitlines()
 
     # =========================
-    # 🔍 ENCONTRAR LINHA DE CABEÇALHO
+    # 🔍 ENCONTRAR INÍCIO DA TABELA REAL
     # =========================
     header_idx = None
+
     for i, linha in enumerate(linhas):
-        if "Ano" in linha:
+        if ";" in linha and any(char.isdigit() for char in linha):
             header_idx = i
             break
 
@@ -40,7 +42,7 @@ def ler_tabnet(uploaded_file):
         return None
 
     # =========================
-    # 📊 LER TABELA REAL
+    # 📊 LER CSV
     # =========================
     try:
         df = pd.read_csv(
@@ -51,14 +53,14 @@ def ler_tabnet(uploaded_file):
     except:
         return None
 
-    # limpar colunas
     df.columns = [c.strip().replace('"', '') for c in df.columns]
 
-    # remover total
+    # remover linhas inválidas
     df = df[~df.iloc[:,0].astype(str).str.contains("Total", na=False)]
+    df = df.dropna(how="all")
 
     # =========================
-    # FORMATO MENSAL
+    # 🔥 FORMATO MENSAL (wide → long)
     # =========================
     if len(df.columns) > 2:
 
@@ -78,7 +80,7 @@ def ler_tabnet(uploaded_file):
         return df_long
 
     # =========================
-    # FORMATO ANUAL
+    # 🔥 FORMATO ANUAL
     # =========================
     else:
         df.columns = ["Ano", "Casos"]
@@ -89,6 +91,7 @@ def ler_tabnet(uploaded_file):
         df = df.dropna()
 
         return df
+
 # FUNÇÃO: NOME DA DOENÇA
 # =========================
 def extrair_nome_doenca(uploaded_file):
