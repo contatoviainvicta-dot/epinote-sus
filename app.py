@@ -39,24 +39,39 @@ def ler_tabnet(uploaded_file):
         else:
             partes = linha.split()
 
-        if len(partes) < 2:
-            continue
+        # 🔥 FORMATO MENSAL (3 colunas)
+        if len(partes) >= 3:
+            try:
+                ano = int(partes[0])
+                mes = int(partes[1])
+                valor = float(partes[-1].replace(",", "."))
+                dados.append([ano, mes, valor])
+            except:
+                continue
 
-        try:
-            ano = int(partes[0])
-            valor = float(partes[-1].replace(",", "."))
-            dados.append([ano, valor])
-        except:
-            continue
+        # 🔥 FORMATO ANUAL (2 colunas)
+        elif len(partes) >= 2:
+            try:
+                ano = int(partes[0])
+                valor = float(partes[-1].replace(",", "."))
+                dados.append([ano, valor])
+            except:
+                continue
 
     if not dados:
         return None
 
-    df = pd.DataFrame(dados, columns=["Ano", "Casos"])
-    df = df.sort_values("Ano")
+    # =========================
+    # DETECTAR FORMATO
+    # =========================
+    if len(dados[0]) == 3:
+        df = pd.DataFrame(dados, columns=["Ano", "Mes", "Casos"])
+        df = df.sort_values(["Ano", "Mes"])
+    else:
+        df = pd.DataFrame(dados, columns=["Ano", "Casos"])
+        df = df.sort_values("Ano")
 
     return df
-
 # =========================
 # FUNÇÃO: NOME DA DOENÇA
 # =========================
