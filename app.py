@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import linregress
 
 st.set_page_config(page_title="Painel Epidemiológico", layout="wide")
 
@@ -136,32 +137,56 @@ if arquivos:
     # =========================
     # 🚨 ALERTAS EPIDEMIOLÓGICOS
     # =========================
-    st.subheader("🚨 Alertas Epidemiológicos")
+st.subheader("🚨 Alertas Epidemiológicos (Z-score)")
 
-    alertas = []
+alertas = []
 
-    for doenca in df_final["Doenca"].unique():
-        df_temp = df_final[df_final["Doenca"] == doenca]
+for doenca in df_final["Doenca"].unique():
+    df_temp = df_final[df_final["Doenca"] == doenca]
 
-        if len(df_temp) < 3:
-            continue
+    if len(df_temp) < 3:
+        continue
 
-        media = df_temp["Casos"].mean()
-        ultimo = df_temp["Casos"].iloc[-1]
+    media = df_temp["Casos"].mean()
+    std = df_temp["Casos"].std()
+    ultimo = df_temp["Casos"].iloc[-1]
 
-        if media == 0:
-            continue
+    if std == 0:
+        continue
 
-        aumento = (ultimo - media) / media
+    z = (ultimo - media) / std
 
-        if aumento > 0.5:
-            alertas.append((doenca, aumento))
+    if z > 2:
+        alertas.append((doenca, z))
 
-    if alertas:
-        for doenca, aumento in alertas:
-            st.error(f"🚨 Alerta: aumento de {aumento*100:.1f}% em {doenca}")
-    else:
-        st.success("✅ Nenhum alerta epidemiológico identificado")
-
+if alertas:
+    for doenca, z in alertas:
+        st.error(f"🚨 Surto possível em {doenca} (Z={z:.2f})")
+else:
+    st.success("✅ Nenhum surto detectado")
 else:
     st.info("⬆️ Envie múltiplos arquivos CSV para comparação.")
+
+    st.subheader("📈 Tendência Estatística")
+
+for doenca in df_final["Doenca"].unique():
+    df_temp = df_final[df_final["Doenca"] == doenca]
+
+    if len(df_temp) < 3:
+        st.info(f"{doenca}: dados insuficientes para regressão")
+        continue
+
+    x = df_temp["Ano"]
+    y = df_temp["Casos"]
+
+    slope, _, _, p_value, _ = linregress(x, y)
+
+    if p_value < 0.05:
+        if slope > 0:
+            interpretacao = "tendência crescente significativa"
+        else:
+            interpretacao = "tendência decrescente significativa"
+    else:
+        interpretacao = "sem tendência estatisticamente significativa"
+
+    st.write(f"**{doenca}**: {interpretacao} (p={p_value:.3f})")
